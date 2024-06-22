@@ -61,9 +61,9 @@ def single_user(id):
             return jsonify(updated_user), 201
 
     if request.method == "DELETE":
-        for user in user_list:
+        for index, user in enumerate(user_list):
             if user['id'] == id:
-                user_list.remove(user)
+                user_list.pop(index)
                 return jsonify(user_list), 201
 
 
