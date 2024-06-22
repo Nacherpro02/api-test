@@ -4,9 +4,15 @@ app = Flask(__name__)
 
 user_list = [
     {
-    "id": 1,
-    "Name": "James",
-    "user": "juan123"
+        "id": 1,
+        "Name": "James",
+        "user": "juan123"
+    },
+    
+    {
+        "id": 2,
+        "Name": "Hadi",
+        "user": "Hadi42"
     }
 ]
 
@@ -18,18 +24,19 @@ def users():
             return jsonify(user_list)
         else:
             return "No hay usuarios", 404
-    elif request.method == "POST":
+    
+    if request.method == "POST":
         new_name = request.form['Name']
         new_user = request.form['user']
-        new_id = request.form['id']
+        id = user_list[-1]['id']+1
         
         
         obj_user = {
             "Name": new_name,
-            "user": new_userName,
-            "id": user_list[-1]['id']+1
+            "user": new_user,
+            "id": id
         }
-        books_list.append(obj_user)
+        user_list.append(obj_user)
         return jsonify(user_list), 201
 
 
