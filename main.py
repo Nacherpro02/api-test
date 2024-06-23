@@ -1,73 +1,91 @@
 from flask import Flask, jsonify, request
+import sqlite3
 
 app = Flask(__name__)
 
-user_list = [
-    {
-        "id": 1,
-        "Name": "James",
-        "user": "juan123"
-    },
-    
-    {
-        "id": 2,
-        "Name": "Hadi",
-        "user": "Hadi42"
-    }
-]
 
+
+def db_connection():
+    conn = None
+    try:
+        conn = sqlite3.connect('users_db.sqlite')
+    except sqlite3.error as e:
+        print(e)
+    return conn
 
 @app.route("/users", methods=["GET", "POST"])
-def users():
+def get_users():
+    conn = db_connection()
+    cursor = conn.cursor()
     if request.method == "GET":
-        if len(user_list) > 0:
-            return jsonify(user_list)
-        else:
-            return "No hay usuarios", 404
+        cursor = conn.execute("SELECT * FROM users")
+        users = [
+            dict(id=row[0], userName=row[1], email=row[2], paswd=row[3])
+            for row in cursor.fetchall()
+        ]
+        if users is not None:
+            return jsonify(users)
     
     if request.method == "POST":
-        new_name = request.form['Name']
-        new_user = request.form['user']
-        id = user_list[-1]['id']+1
+        new_userName = request.form['userName']
+        new_email = request.form['email']
+        new_paswd = request.form['password']
+        sql = """ INSERT INTO users (userName, email, paswd)
+            
+                  VALUES (?,?,?)"""
+        
+        cursor = conn.execute(sql, (new_userName, new_email, new_paswd))
+        conn.commit()
+        return f"The user: {new_userName} with id: {cursor.lastrowid} created succesfully"
         
         
-        obj_user = {
-            "Name": new_name,
-            "user": new_user,
-            "id": id
-        }
-        user_list.append(obj_user)
-        return jsonify(user_list), 201
 
 
 @app.route("/users/<int:id>", methods=["GET", "PUT", "DELETE"])
 def single_user(id):
+    conn = db_connection()
+    cursor = conn.cursor()
+    user = None
     if request.method == "GET":
-        for user in user_list:
-            if user['id'] == id:
-                return jsonify(user)
-            pass
+        cursor.execute("SELECT * FROM users WHERE id=?", (id,))
+        rows = cursor.fetchall()
+        for r in rows:
+            user = r
+        
+        if user is not None:
+            return jsonify(user), 200
+        else:
+            return "That user doesn't exist", 404
+        
+
     
     if request.method == "PUT":
-        for user in user_list:
-            if user['id'] == id:
-                user['Name'] = request.form['Name']
-                user['user'] = request.form['user']
-            updated_user = {
-                "Name": user['Name'],
-                "user": user['user'],
-                "id": id
-            }
-            return jsonify(updated_user), 201
+        sql = """ UPDATE users
+               SET userName=?,
+                   email =?,
+                   paswd =?
+               WHERE id=?"""
+        
+        new_userName = request.form["userName"]
+        new_email = request.form["email"]
+        new_paswd = request.form["password"]
+        updated_user = {
+            "id": id,
+            "username": new_userName,
+            "email": new_email,
+            "paswd": new_paswd
+        }
+        
+        
+        conn.execute(sql, (new_userName, new_email, new_paswd, id))
+        conn.commit()
+        return jsonify(updated_user)
 
     if request.method == "DELETE":
-        for index, user in enumerate(user_list):
-            if user['id'] == id:
-                user_list.pop(index)
-                return jsonify(user_list), 201
-
-
-
+        sql = """ DELETE FROM users WHERE id = ?"""
+        conn.execute(sql, (id,))
+        conn.commit()
+        return f"User with id = {id} has been deleted", 200
 
 
 
