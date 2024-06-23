@@ -1,7 +1,5 @@
 from flask import Flask, jsonify, request
-import json
-import pymysql
-
+import sqlite3
 
 app = Flask(__name__)
 
@@ -10,14 +8,8 @@ app = Flask(__name__)
 def db_connection():
     conn = None
     try:
-        conn = pymysql.connect(
-        host='sql8.freesqldatabase.com',
-        database='sql8715658',
-        user='sql8715658',
-        password='T1GB4DABb2',
-        charset='utf8mb4',
-        cursorclass=pymysql.cursors.DictCursor)
-    except pymysql.Error as e:
+        conn = sqlite3.connect('users_db.sqlite')
+    except sqlite3.error as e:
         print(e)
     return conn
 
@@ -26,9 +18,9 @@ def get_users():
     conn = db_connection()
     cursor = conn.cursor()
     if request.method == "GET":
-        cursor = cursor.execute("SELECT * FROM users")
+        cursor = conn.execute("SELECT * FROM users")
         users = [
-            dict(id=row['id'], userName=row['userName'], email=row['email'], paswd=row['paswd'])
+            dict(id=row[0], userName=row[1], email=row[2], paswd=row[3])
             for row in cursor.fetchall()
         ]
         if users is not None:
@@ -40,11 +32,11 @@ def get_users():
         new_paswd = request.form['password']
         sql = """ INSERT INTO users (userName, email, paswd)
             
-                  VALUES (%s,%s,%s)"""
+                  VALUES (?,?,?)"""
         
-        cursor = cursor.execute(sql, (new_userName, new_email, new_paswd))
+        cursor = conn.execute(sql, (new_userName, new_email, new_paswd))
         conn.commit()
-        return f"The user: {new_userName} was created succesfully"
+        return f"The user: {new_userName} with id: {cursor.lastrowid} created succesfully"
         
         
 
@@ -55,7 +47,7 @@ def single_user(id):
     cursor = conn.cursor()
     user = None
     if request.method == "GET":
-        cursor.execute("SELECT * FROM users WHERE id=%s", (id,))
+        cursor.execute("SELECT * FROM users WHERE id=?", (id,))
         rows = cursor.fetchall()
         for r in rows:
             user = r
@@ -69,10 +61,10 @@ def single_user(id):
     
     if request.method == "PUT":
         sql = """ UPDATE users
-               SET userName=%s,
-                   email =%s,
-                   paswd =%s
-               WHERE id=%s"""
+               SET userName=?,
+                   email =?,
+                   paswd =?
+               WHERE id=?"""
         
         new_userName = request.form["userName"]
         new_email = request.form["email"]
@@ -81,19 +73,19 @@ def single_user(id):
             "id": id,
             "username": new_userName,
             "email": new_email,
-            "password": new_paswd
+            "paswd": new_paswd
         }
         
         
-        cursor.execute(sql, (new_userName, new_email, new_paswd, id))
+        conn.execute(sql, (new_userName, new_email, new_paswd, id))
         conn.commit()
         return jsonify(updated_user)
 
     if request.method == "DELETE":
-        sql = """ DELETE FROM users WHERE id =%s"""
-        cursor.execute(sql, (id,))
+        sql = """ DELETE FROM users WHERE id = ?"""
+        conn.execute(sql, (id,))
         conn.commit()
-        return f"User with id: {id} has been deleted", 200
+        return f"User with id = {id} has been deleted", 200
 
 
 
